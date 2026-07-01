@@ -65,7 +65,10 @@ class Handler(BaseHTTPRequestHandler):
             result = subprocess.run(
                 parts,
                 cwd="/opt/chihiros-src",
-                env={**os.environ, "PYTHONPATH": "/opt/chihiros-src"},
+                env={
+                    **os.environ,
+                    "PYTHONPATH": "/opt/chihiros-src/custom_components/chihiros/vendor:/opt/chihiros-src",
+                },
                 text=True,
                 capture_output=True,
                 timeout=120,

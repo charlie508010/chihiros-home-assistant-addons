@@ -9,6 +9,7 @@ RUN apk add --no-cache \
     dbus \
     git \
     py3-pip \
+    py3-tkinter \
     python3 \
     py3-virtualenv \
   && python3 -m venv /opt/chihiros-venv \
@@ -23,8 +24,8 @@ COPY run.sh /run.sh
 COPY ui /opt/chihiros-addon-ui
 
 RUN chmod a+x /run.sh \
-  && printf '%s\n' '#!/usr/bin/env bash' 'export PYTHONPATH=/opt/chihiros-src:${PYTHONPATH}' 'exec /opt/chihiros-venv/bin/python -m custom_components.chihiros.chihiros_led_control.chihirosctl "$@"' > /usr/bin/chihirosctl \
+  && printf '%s\n' '#!/usr/bin/env bash' 'export PYTHONPATH=/opt/chihiros-src/custom_components/chihiros/vendor:/opt/chihiros-src:${PYTHONPATH}' 'exec /opt/chihiros-venv/bin/python -m legacy_ctl.chihiros_led_control_old.chihirosctl "$@"' > /usr/bin/chihirosctl \
   && chmod a+x /usr/bin/chihirosctl
 
-ENV PYTHONPATH=/opt/chihiros-src
+ENV PYTHONPATH=/opt/chihiros-src/custom_components/chihiros/vendor:/opt/chihiros-src
 CMD ["/usr/bin/with-contenv", "bash", "/run.sh"]
