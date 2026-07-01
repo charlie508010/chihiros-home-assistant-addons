@@ -4,7 +4,12 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
+import shutil
 import subprocess
+import tarfile
+import tempfile
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -13,6 +18,8 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path("/opt/chihiros-addon-ui")
+BUNDLED_PLUGIN_ROOT = ROOT / "plugins"
+PLUGIN_ROOT = Path("/config/chihiros/plugins")
 CORE_API = "http://supervisor/core/api"
 TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 
@@ -23,12 +30,21 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/states":
             self.proxy_core("GET", "/states")
             return
+        if parsed.path == "/api/plugins":
+            self.send_json(200, {"plugins": self.list_plugins()})
+            return
         self.serve_static(parsed.path)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/api/ctl":
             self.run_ctl(self.read_json())
+            return
+        if parsed.path == "/api/plugins/upload":
+            self.upload_plugin()
+            return
+        if parsed.path == "/api/plugins/install-bundled":
+            self.install_bundled_plugin(self.read_json())
             return
         if parsed.path.startswith("/api/services/"):
             parts = parsed.path.strip("/").split("/")
@@ -43,6 +59,155 @@ class Handler(BaseHTTPRequestHandler):
             self.proxy_core("POST", suffix, self.read_json())
             return
         self.send_json(404, {"message": "Not found"})
+
+    def install_bundled_plugin(self, body: bytes) -> None:
+        try:
+            data = json.loads(body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            self.send_json(400, {"message": "Invalid JSON"})
+            return
+        plugin_id = self.safe_plugin_id(str(data.get("id") or ""))
+        if not plugin_id:
+            self.send_json(400, {"message": "Ungueltige Plugin-ID"})
+            return
+        source = BUNDLED_PLUGIN_ROOT / plugin_id
+        manifest = source / "plugin.json"
+        if not manifest.is_file():
+            self.send_json(404, {"message": "Mitgeliefertes Plugin nicht gefunden"})
+            return
+        try:
+            installed = self.install_plugin_directory(source)
+        except Exception as err:
+            self.send_json(500, {"message": str(err)})
+            return
+        self.send_json(200, {"message": "Plugin installed", "plugin": installed, "plugins": self.list_plugins()})
+
+    def list_plugins(self) -> list[dict[str, object]]:
+        plugins: list[dict[str, object]] = []
+        if not PLUGIN_ROOT.exists():
+            return plugins
+        for manifest in sorted(PLUGIN_ROOT.glob("*/plugin.json")):
+            try:
+                data = json.loads(manifest.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            plugin_id = self.safe_plugin_id(str(data.get("id") or manifest.parent.name))
+            if not plugin_id:
+                continue
+            plugins.append(
+                {
+                    "id": plugin_id,
+                    "name": str(data.get("name") or plugin_id),
+                    "version": str(data.get("version") or ""),
+                    "tab": str(data.get("tab") or data.get("name") or plugin_id),
+                    "installed": True,
+                }
+            )
+        return plugins
+
+    def upload_plugin(self) -> None:
+        try:
+            filename, payload = self.read_upload_file()
+            plugin_id = self.install_plugin_archive(filename, payload)
+        except ValueError as err:
+            self.send_json(400, {"message": str(err)})
+            return
+        except Exception as err:
+            self.send_json(500, {"message": str(err)})
+            return
+        self.send_json(200, {"message": "Plugin installed", "plugin": plugin_id, "plugins": self.list_plugins()})
+
+    def read_upload_file(self) -> tuple[str, bytes]:
+        content_type = self.headers.get("content-type", "")
+        boundary_match = re.search(r"boundary=(?P<boundary>[^;]+)", content_type)
+        if not boundary_match:
+            raise ValueError("Upload muss multipart/form-data sein")
+        boundary = boundary_match.group("boundary").strip().strip('"').encode("utf-8")
+        length = int(self.headers.get("content-length", "0") or "0")
+        if length <= 0:
+            raise ValueError("Keine Datei hochgeladen")
+        body = self.rfile.read(length)
+        for part in body.split(b"--" + boundary):
+            if b"filename=" not in part:
+                continue
+            head, _, data = part.partition(b"\r\n\r\n")
+            if not data:
+                continue
+            disposition = head.decode("utf-8", errors="ignore")
+            name_match = re.search(r'filename="(?P<name>[^"]+)"', disposition)
+            filename = Path(name_match.group("name") if name_match else "plugin.zip").name
+            data = data.rsplit(b"\r\n", 1)[0]
+            if not data:
+                raise ValueError("Upload-Datei ist leer")
+            return filename, data
+        raise ValueError("Keine Plugin-Datei im Upload gefunden")
+
+    def install_plugin_archive(self, filename: str, payload: bytes) -> str:
+        suffix = filename.lower()
+        if not (suffix.endswith(".zip") or suffix.endswith(".tgz") or suffix.endswith(".tar.gz")):
+            raise ValueError("Nur .zip, .tgz oder .tar.gz Plugins sind erlaubt")
+        PLUGIN_ROOT.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory() as tmp_name:
+            tmp = Path(tmp_name)
+            archive = tmp / filename
+            archive.write_bytes(payload)
+            extract_dir = tmp / "extract"
+            extract_dir.mkdir()
+            if suffix.endswith(".zip"):
+                with zipfile.ZipFile(archive) as zf:
+                    self.safe_extract_zip(zf, extract_dir)
+            else:
+                with tarfile.open(archive) as tf:
+                    self.safe_extract_tar(tf, extract_dir)
+            manifest = self.find_plugin_manifest(extract_dir)
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            plugin_id = self.safe_plugin_id(str(data.get("id") or manifest.parent.name))
+            if not plugin_id:
+                raise ValueError("plugin.json enthaelt keine gueltige id")
+            target = PLUGIN_ROOT / plugin_id
+            self.copy_plugin_tree(manifest.parent, target)
+            return plugin_id
+
+    def install_plugin_directory(self, source: Path) -> str:
+        data = json.loads((source / "plugin.json").read_text(encoding="utf-8"))
+        plugin_id = self.safe_plugin_id(str(data.get("id") or source.name))
+        if not plugin_id:
+            raise ValueError("plugin.json enthaelt keine gueltige id")
+        target = PLUGIN_ROOT / plugin_id
+        PLUGIN_ROOT.mkdir(parents=True, exist_ok=True)
+        self.copy_plugin_tree(source, target)
+        return plugin_id
+
+    def copy_plugin_tree(self, source: Path, target: Path) -> None:
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.copytree(source, target)
+
+    def find_plugin_manifest(self, root: Path) -> Path:
+        manifests = list(root.glob("plugin.json")) + list(root.glob("*/plugin.json"))
+        if not manifests:
+            raise ValueError("Plugin enthaelt keine plugin.json")
+        return manifests[0]
+
+    def safe_plugin_id(self, value: str) -> str:
+        value = value.strip().lower().replace("-", "_")
+        return value if re.fullmatch(r"[a-z0-9_]+", value) else ""
+
+    def safe_extract_zip(self, archive: zipfile.ZipFile, target: Path) -> None:
+        root = target.resolve()
+        for info in archive.infolist():
+            destination = (target / info.filename).resolve()
+            if not str(destination).startswith(str(root)):
+                raise ValueError("Plugin-Archiv enthaelt ungueltige Pfade")
+        archive.extractall(target)
+
+    def safe_extract_tar(self, archive: tarfile.TarFile, target: Path) -> None:
+        root = target.resolve()
+        for member in archive.getmembers():
+            destination = (target / member.name).resolve()
+            if not str(destination).startswith(str(root)):
+                raise ValueError("Plugin-Archiv enthaelt ungueltige Pfade")
+        archive.extractall(target)
 
     def run_ctl(self, body: bytes) -> None:
         try:

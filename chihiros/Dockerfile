@@ -5,6 +5,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apk add --no-cache \
     bash \
+    android-tools \
     bluez \
     dbus \
     git \
@@ -15,8 +16,12 @@ RUN apk add --no-cache \
   && /opt/chihiros-venv/bin/pip install --no-cache-dir --upgrade pip \
   && /opt/chihiros-venv/bin/pip install --no-cache-dir \
     bleak-retry-connector==4.6.1 \
+    adb-shell \
     bleak \
+    prettytable \
+    pyshark \
     rich \
+    tqdm \
     "typer[all]==0.15.2"
 
 COPY run.sh /run.sh

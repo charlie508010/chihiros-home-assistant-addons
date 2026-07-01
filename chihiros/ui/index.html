@@ -93,6 +93,268 @@
       const CardClass = customElements.get("chihiros-doser-card-v3");
       if (CardClass && !CardClass.prototype._addonCtlPatched) {
         CardClass.prototype._addonCtlPatched = true;
+        const originalDeviceTabs = CardClass.prototype.deviceTabs;
+        const originalTabContent = CardClass.prototype.tabContent;
+        const originalConfigPanel = CardClass.prototype.configPanel;
+        const originalUpdated = CardClass.prototype.updated;
+
+        CardClass.prototype.hasAddonPlugin = function(id) {
+          return Array.isArray(this.addonPlugins) && this.addonPlugins.some((plugin) => plugin && plugin.id === id);
+        };
+
+        CardClass.prototype.deviceTabs = function() {
+          const base = originalDeviceTabs.call(this);
+          if (!this.hasAddonPlugin("wireshark")) return base;
+          const button = `<button type="button" data-tab="wireshark" class="${this.activeTab === "wireshark" ? "active" : ""}">Wireshark</button>`;
+          return base.replace("</nav>", `${button}</nav>`);
+        };
+
+        CardClass.prototype.configPanel = function() {
+          const base = originalConfigPanel.call(this);
+          const plugins = Array.isArray(this.addonPlugins) && this.addonPlugins.length
+            ? this.addonPlugins.map((plugin) => `
+                <div class="plugin-row">
+                  <span>${this.escapeHtml(plugin.name || plugin.id)}</span>
+                  <b>${this.escapeHtml(plugin.version || "installiert")}</b>
+                </div>`).join("")
+            : `<div class="empty-note">Keine Plugins installiert.</div>`;
+          const pluginCard = `
+            <section class="card config-card plugin-card">
+              <h2>Plugins</h2>
+              <form data-plugin-upload class="plugin-upload">
+                <input type="file" name="plugin" accept=".zip,.tgz,.tar.gz">
+                <button type="submit">Installieren</button>
+              </form>
+              <button type="button" class="plugin-install-bundled" data-plugin-install="wireshark">Wireshark Plugin installieren</button>
+              <p class="config-help">Installierte Plugins werden unter /config/chihiros/plugins gespeichert. Der Wireshark-Tab erscheint nach Installation automatisch.</p>
+              ${plugins}
+              ${this.addonPluginMessage ? `<pre class="ws-log">${this.escapeHtml(this.addonPluginMessage)}</pre>` : ""}
+            </section>`;
+          const insertAt = base.lastIndexOf("</div>");
+          return insertAt >= 0 ? `${base.slice(0, insertAt)}${pluginCard}${base.slice(insertAt)}` : `${base}${pluginCard}`;
+        };
+
+        CardClass.prototype.wiresharkDefaults = function() {
+          return {
+            hci: "/config/chihiros/wireshark/hci_log",
+            capture: "/config/chihiros/wireshark/captures",
+            file: "",
+            device: "doser_1 | DF:2A:88:E7:8A:90",
+            localMac: "DF:2A:88:E7:8A:90",
+            localName: "doser_1",
+            adb: "172.20.48.8:5555",
+            package: "cn.chihiros.chihiros_magic_new",
+            auth: "key",
+            notify: true,
+            ret: true,
+            all: false,
+            strip: false,
+            keep: false,
+            debug: false,
+            root: false,
+          };
+        };
+
+        CardClass.prototype.wiresharkStateValue = function(key) {
+          this.wiresharkState = { ...this.wiresharkDefaults(), ...(this.wiresharkState || {}) };
+          return this.wiresharkState[key];
+        };
+
+        CardClass.prototype.wiresharkPanel = function() {
+          const value = (key) => this.escapeHtml(String(this.wiresharkStateValue(key) ?? ""));
+          const checked = (key) => this.wiresharkStateValue(key) ? "checked" : "";
+          const rows = Array.isArray(this.wiresharkFrames) && this.wiresharkFrames.length
+            ? this.wiresharkFrames.map((row, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>${this.escapeHtml(row.time || "")}</td>
+                  <td>${this.escapeHtml(row.source || "")}</td>
+                  <td>${this.escapeHtml(row.destination || "")}</td>
+                  <td>${this.escapeHtml(row.protocol || "")}</td>
+                  <td>${this.escapeHtml(row.cmd || "")}</td>
+                  <td>${this.escapeHtml(row.mode || "")}</td>
+                  <td>${this.escapeHtml(row.params || "")}</td>
+                  <td>${this.escapeHtml(row.hex || "")}</td>
+                </tr>`).join("")
+            : `<tr><td colspan="9">Noch keine Frames geladen.</td></tr>`;
+          return `
+            <style>
+              .ws-page { display:grid; grid-template-columns:1fr; gap:10px; }
+              .ws-card { min-height:220px; }
+              .ws-form { display:grid; gap:8px; }
+              .ws-row { display:grid; grid-template-columns:150px minmax(0, 1fr) 112px; gap:8px; align-items:center; }
+              .ws-row.two { grid-template-columns:150px minmax(0, 1fr) minmax(120px, 170px); }
+              .ws-row label, .ws-checks label { color:rgba(255,255,255,.82); font-weight:600; }
+              .ws-row input, .ws-row select { min-height:34px; border:1px solid rgba(81,154,190,.35); border-radius:6px; background:rgba(255,255,255,.08); color:var(--primary-text-color); padding:0 10px; font:inherit; }
+              .ws-row button, .ws-actions button, .plugin-upload button { min-height:34px; border:1px solid rgba(3,201,255,.65); border-radius:6px; background:rgba(0,122,166,.18); color:var(--primary-text-color); font:inherit; font-weight:700; cursor:pointer; padding:0 12px; }
+              .ws-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+              .ws-actions .primary { background:rgba(0,97,255,.35); border-color:rgba(0,130,255,.8); }
+              .ws-actions .warn { background:rgba(255,123,0,.45); border-color:rgba(255,146,43,.85); }
+              .ws-checks { display:flex; flex-wrap:wrap; gap:14px; margin:8px 0 4px; }
+              .ws-checks label { display:flex; gap:6px; align-items:center; min-height:28px; }
+              .ws-progress { display:grid; grid-template-columns:minmax(0, 1fr) 46px; gap:10px; align-items:center; margin:8px 0; }
+              .ws-progress div { height:18px; border-radius:2px; background:rgba(110,174,255,.28); border:1px solid rgba(110,174,255,.25); }
+              .ws-table-wrap { overflow:auto; border:1px solid rgba(81,154,190,.25); border-radius:7px; max-height:300px; }
+              .ws-table { width:100%; border-collapse:collapse; min-width:1120px; }
+              .ws-table th, .ws-table td { border-bottom:1px solid rgba(255,255,255,.08); padding:6px 8px; text-align:left; white-space:nowrap; }
+              .ws-table th { color:rgba(255,255,255,.86); background:rgba(255,255,255,.05); position:sticky; top:0; }
+              .ws-log { margin:10px 0 0; min-height:130px; max-height:240px; overflow:auto; border:1px solid rgba(81,154,190,.25); border-radius:6px; background:#071020; color:#e9f4ff; padding:10px; font:12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre-wrap; }
+              .plugin-upload { display:grid; grid-template-columns:minmax(0,1fr) 120px; gap:8px; margin:8px 0; }
+              .plugin-upload input { min-height:34px; border:1px solid rgba(81,154,190,.35); border-radius:6px; background:rgba(255,255,255,.08); color:var(--primary-text-color); padding:6px 10px; font:inherit; }
+              .plugin-install-bundled { min-height:34px; border:1px solid rgba(3,201,255,.65); border-radius:6px; background:rgba(0,122,166,.18); color:var(--primary-text-color); font:inherit; font-weight:700; cursor:pointer; padding:0 12px; }
+              .plugin-row { display:grid; grid-template-columns:1fr auto; gap:12px; padding:8px 0; border-top:1px solid rgba(255,255,255,.08); }
+              .config-help { color:rgba(255,255,255,.62); margin:8px 0; }
+            </style>
+            <div class="ws-page">
+              <section class="card ws-card">
+                <h2>Chihiros Wireshark GUI</h2>
+                <div class="ws-form">
+                  <div class="ws-row"><label>HCI-Log Ordner</label><input data-ws-input="hci" value="${value("hci")}"><button data-ws-run="config">Speichern</button></div>
+                  <div class="ws-row"><label>Capture Ordner</label><input data-ws-input="capture" value="${value("capture")}"><button data-ws-run="config">Speichern</button></div>
+                  <div class="ws-row"><label>Datei</label><input data-ws-input="file" value="${value("file")}" placeholder="btsnoop_hci.log oder frames.jsonl"><button data-ws-run="load">Datei laden</button></div>
+                  <div class="ws-row"><label>Geraet / MAC</label><input data-ws-input="device" value="${value("device")}"><button data-ws-run="devices">Geraete neu laden</button></div>
+                  <div class="ws-row two"><label>Lokaler Name</label><input data-ws-input="localMac" value="${value("localMac")}"><input data-ws-input="localName" value="${value("localName")}"></div>
+                  <div class="ws-row two"><label>ADB IP:Port</label><input data-ws-input="adb" value="${value("adb")}"><select data-ws-input="auth"><option value="key" ${this.wiresharkStateValue("auth") === "key" ? "selected" : ""}>key</option><option value="none" ${this.wiresharkStateValue("auth") === "none" ? "selected" : ""}>none</option><option value="password" ${this.wiresharkStateValue("auth") === "password" ? "selected" : ""}>password</option></select></div>
+                  <div class="ws-row"><label>App Paket</label><input data-ws-input="package" value="${value("package")}"><button data-ws-run="settings">Aktualisieren</button></div>
+                  <div class="ws-checks">
+                    <label><input type="checkbox" data-ws-input="notify" ${checked("notify")}>Geraet notify</label>
+                    <label><input type="checkbox" data-ws-input="ret" ${checked("ret")}>Geraet return</label>
+                    <label><input type="checkbox" data-ws-input="all" ${checked("all")}>alle Protokollpakete</label>
+                    <label><input type="checkbox" data-ws-input="strip" ${checked("strip")}>strip-hci</label>
+                    <label><input type="checkbox" data-ws-input="keep" ${checked("keep")}>keep-temp</label>
+                    <label><input type="checkbox" data-ws-input="debug" ${checked("debug")}>debug</label>
+                    <label><input type="checkbox" data-ws-input="root" ${checked("root")}>root direkt</label>
+                  </div>
+                  <div class="ws-actions">
+                    <button data-ws-run="load">Datei laden</button>
+                    <button data-ws-run="btsnoop">btsnoop -> JSONL</button>
+                    <button class="primary" data-ws-run="extract">Frames extrahieren</button>
+                    <button class="warn" data-ws-run="adb">ADB USB freischalten</button>
+                    <button data-ws-run="root">Root pruefen</button>
+                    <button data-ws-run="compare">Vergleich App-Log</button>
+                  </div>
+                  <div class="ws-progress"><div></div><span>${this.escapeHtml(String(this.wiresharkProgress || 0))}%</span></div>
+                  <div class="ws-table-wrap">
+                    <table class="ws-table">
+                      <thead><tr><th>#</th><th>Zeit</th><th>Source</th><th>Destination</th><th>Protocol</th><th>Cmd</th><th>Mode</th><th>Parameter / Return</th><th>Encode / Hex</th></tr></thead>
+                      <tbody>${rows}</tbody>
+                    </table>
+                  </div>
+                  <h3>Details / Log</h3>
+                  <pre class="ws-log">${this.escapeHtml(this.wiresharkLog || "Bereit.")}</pre>
+                </div>
+              </section>
+            </div>`;
+        };
+
+        CardClass.prototype.tabContent = function() {
+          if (this.activeTab === "wireshark") return this.wiresharkPanel();
+          return originalTabContent.call(this);
+        };
+
+        CardClass.prototype.updateWiresharkStateFromInputs = function() {
+          this.wiresharkState = { ...this.wiresharkDefaults(), ...(this.wiresharkState || {}) };
+          this.querySelectorAll("[data-ws-input]").forEach((el) => {
+            const key = el.getAttribute("data-ws-input");
+            if (!key) return;
+            this.wiresharkState[key] = el.type === "checkbox" ? Boolean(el.checked) : String(el.value || "");
+          });
+        };
+
+        CardClass.prototype.buildWiresharkCommand = function(action) {
+          this.updateWiresharkStateFromInputs();
+          const state = { ...this.wiresharkDefaults(), ...(this.wiresharkState || {}) };
+          const file = state.file || "";
+          const captureFile = file.startsWith("/") ? file : `${state.capture}/${file}`;
+          const commonExtract = `${state.all ? "--all-att" : ""}`.trim();
+          if (action === "config" || action === "settings") {
+            return `chihirosctl wireshark config set-settings --hci-log-dir ${state.hci} --capture-dir ${state.capture} --temp-dir /config/chihiros/wireshark/temp --adb-ip ${state.adb} --auth-method ${state.auth}`;
+          }
+          if (action === "devices") return "chihirosctl wireshark config list";
+          if (action === "load") return file ? `chihirosctl wireshark peek ${captureFile} --limit 30` : "chihirosctl wireshark config show-settings";
+          if (action === "btsnoop") return file ? `chihirosctl wireshark btsnoop-to-jsonl ${captureFile} --out ${state.capture}/${file}.jsonl` : "chihirosctl wireshark config show-settings";
+          if (action === "extract") return file ? `chihirosctl wireshark extract-frames ${captureFile} ${commonExtract}` : "chihirosctl wireshark config show-settings";
+          if (action === "adb") return `chihirosctl wireshark collect ${state.adb} --output-dir ${state.capture} --auth-method ${state.auth} --app-package ${state.package} --extract ${state.all ? "--all-att" : "--protocol-only"} ${state.keep ? "--keep-temp" : ""} ${state.root ? "--root-direct-pull" : ""}`;
+          if (action === "root") return `chihirosctl wireshark collect ${state.adb} --output-dir ${state.capture} --auth-method ${state.auth} --app-package ${state.package} --root-debug-prep --no-extract`;
+          if (action === "compare") return file ? `chihirosctl wireshark peek ${captureFile} --limit 80 --rx also` : "chihirosctl wireshark config show-settings";
+          return "chihirosctl wireshark config show-settings";
+        };
+
+        CardClass.prototype.runWiresharkAction = async function(action) {
+          const command = this.buildWiresharkCommand(action);
+          this.wiresharkLog = `RUN\n${command}`;
+          this.wiresharkProgress = 10;
+          this.render();
+          try {
+            const response = await fetch("./api/ctl", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ command }),
+            });
+            const data = await response.json();
+            this.wiresharkLog = `${response.ok ? "OK" : "FAIL"}\n${command}\n\n${data.output || data.message || ""}`;
+            this.wiresharkProgress = response.ok ? 100 : 0;
+          } catch (err) {
+            this.wiresharkLog = `FAIL\n${command}\n\n${err && err.message ? err.message : String(err)}`;
+            this.wiresharkProgress = 0;
+          }
+          this.render();
+        };
+
+        CardClass.prototype.updated = function() {
+          originalUpdated.call(this);
+          this.querySelectorAll("[data-ws-run]").forEach((el) => {
+            el.addEventListener("click", () => this.runWiresharkAction(el.getAttribute("data-ws-run")));
+          });
+          this.querySelectorAll("[data-ws-input]").forEach((el) => {
+            el.addEventListener("change", () => this.updateWiresharkStateFromInputs());
+          });
+          this.querySelectorAll("[data-plugin-upload]").forEach((form) => {
+            form.addEventListener("submit", async (ev) => {
+              ev.preventDefault();
+              const file = form.querySelector("input[type=file]");
+              if (!file || !file.files || !file.files[0]) {
+                this.addonPluginMessage = "Keine Plugin-Datei ausgewaehlt.";
+                this.render();
+                return;
+              }
+              const body = new FormData();
+              body.append("plugin", file.files[0]);
+              this.addonPluginMessage = "Plugin wird installiert...";
+              this.render();
+              try {
+                const response = await fetch("./api/plugins/upload", { method: "POST", body });
+                const data = await response.json();
+                this.addonPluginMessage = `${response.ok ? "OK" : "FAIL"}\n${data.message || ""}`;
+                if (Array.isArray(data.plugins)) this.addonPlugins = data.plugins;
+              } catch (err) {
+                this.addonPluginMessage = `FAIL\n${err && err.message ? err.message : String(err)}`;
+              }
+              this.render();
+            });
+          });
+          this.querySelectorAll("[data-plugin-install]").forEach((button) => {
+            button.addEventListener("click", async () => {
+              const id = button.getAttribute("data-plugin-install");
+              this.addonPluginMessage = `${id} wird installiert...`;
+              this.render();
+              try {
+                const response = await fetch("./api/plugins/install-bundled", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ id }),
+                });
+                const data = await response.json();
+                this.addonPluginMessage = `${response.ok ? "OK" : "FAIL"}\n${data.message || ""}`;
+                if (Array.isArray(data.plugins)) this.addonPlugins = data.plugins;
+              } catch (err) {
+                this.addonPluginMessage = `FAIL\n${err && err.message ? err.message : String(err)}`;
+              }
+              this.render();
+            });
+          });
+        };
+
         CardClass.prototype.copyCtlCommand = async function(command) {
           const channel = this.channels && this.channels[0] ? this.channels[0].id : 1;
           const device = String(this.ctlDevice || "doser_1").trim() || "doser_1";
@@ -182,6 +444,12 @@
         status.textContent = "online";
       }
 
+      async function refreshPlugins() {
+        const response = await fetch("./api/plugins", { cache: "no-store" });
+        const data = await response.json();
+        dashboard.addonPlugins = Array.isArray(data.plugins) ? data.plugins : [];
+      }
+
       dashboard.setConfig({
         default_tab: "doser",
         show_mac: true,
@@ -198,6 +466,7 @@
         }
       }
 
+      await refreshPlugins();
       await tick();
       window.setInterval(tick, 5000);
     </script>
