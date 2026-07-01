@@ -119,6 +119,11 @@ def main() -> None:
     sys.modules["custom_components"] = custom_components
     sys.modules["custom_components.chihiros"] = chihiros_pkg
 
+    if len(sys.argv) >= 2 and sys.argv[1] == "wireshark":
+        sys.argv = ["chihirosctl", *sys.argv[2:]]
+        runpy.run_module("custom_components.chihiros.chihiros_wireshark_control.wiresharkctl", run_name="__main__")
+        return
+
     runpy.run_module("custom_components.chihiros.chihiros_led_control.chihirosctl", run_name="__main__")
 
 
