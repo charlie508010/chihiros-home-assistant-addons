@@ -96,7 +96,7 @@
         const originalDeviceTabs = CardClass.prototype.deviceTabs;
         const originalTabContent = CardClass.prototype.tabContent;
         const originalConfigPanel = CardClass.prototype.configPanel;
-        const originalUpdated = CardClass.prototype.updated;
+        const originalRender = CardClass.prototype.render;
 
         CardClass.prototype.hasAddonPlugin = function(id) {
           return Array.isArray(this.addonPlugins) && this.addonPlugins.some((plugin) => plugin && plugin.id === id);
@@ -301,8 +301,7 @@
           this.render();
         };
 
-        CardClass.prototype.updated = function() {
-          originalUpdated.call(this);
+        CardClass.prototype.bindAddonControls = function() {
           this.querySelectorAll("[data-ws-run]").forEach((el) => {
             el.addEventListener("click", () => this.runWiresharkAction(el.getAttribute("data-ws-run")));
           });
@@ -353,6 +352,11 @@
               this.render();
             });
           });
+        };
+
+        CardClass.prototype.render = function() {
+          originalRender.call(this);
+          this.bindAddonControls();
         };
 
         CardClass.prototype.copyCtlCommand = async function(command) {
