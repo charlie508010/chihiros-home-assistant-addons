@@ -43,7 +43,12 @@ git clone --depth 1 --branch "${SOURCE_BRANCH}" "${SOURCE_REPOSITORY}" /opt/chih
 
 rm -rf /opt/chihiros-addon-ui/www
 mkdir -p /opt/chihiros-addon-ui/www
-cp -a /opt/chihiros-src/custom_components/chihiros/www/. /opt/chihiros-addon-ui/www/
+if [[ -d /opt/chihiros-src/custom_components/chihiros/www ]]; then
+  cp -a /opt/chihiros-src/custom_components/chihiros/www/. /opt/chihiros-addon-ui/www/
+fi
+if [[ -d /opt/chihiros-addon-ui/bundled-www ]]; then
+  cp -a /opt/chihiros-addon-ui/bundled-www/. /opt/chihiros-addon-ui/www/
+fi
 
 mkdir -p /config/chihiros/plugins
 if [[ -f /opt/chihiros-addon-ui/plugins/wireshark/plugin.json && ! -f /config/chihiros/plugins/wireshark/plugin.json ]]; then

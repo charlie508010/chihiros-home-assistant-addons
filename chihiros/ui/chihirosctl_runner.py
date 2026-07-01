@@ -121,10 +121,18 @@ def main() -> None:
 
     if len(sys.argv) >= 2 and sys.argv[1] == "wireshark":
         sys.argv = ["chihirosctl", *sys.argv[2:]]
-        runpy.run_module("custom_components.chihiros.chihiros_wireshark_control.wiresharkctl", run_name="__main__")
+        if (chihiros_root / "chihiros_wireshark_control" / "wiresharkctl.py").is_file():
+            module = "custom_components.chihiros.chihiros_wireshark_control.wiresharkctl"
+        else:
+            module = "custom_components.chihiros.vendor.legacy_ctl.chihiros_wireshark_control.wiresharkctl"
+        runpy.run_module(module, run_name="__main__")
         return
 
-    runpy.run_module("custom_components.chihiros.chihiros_led_control.chihirosctl", run_name="__main__")
+    if (chihiros_root / "chihiros_led_control" / "chihirosctl.py").is_file():
+        module = "custom_components.chihiros.chihiros_led_control.chihirosctl"
+    else:
+        module = "custom_components.chihiros.vendor.legacy_ctl.chihiros_led_control_old.chihirosctl"
+    runpy.run_module(module, run_name="__main__")
 
 
 def _find_chihiros_root() -> Path | None:
@@ -133,15 +141,22 @@ def _find_chihiros_root() -> Path | None:
         Path("/config/custom_components/chihiros"),
     ]
     for candidate in candidates:
-        if (candidate / "chihiros_led_control" / "chihirosctl.py").is_file():
+        if _has_ctl_entrypoint(candidate):
             return candidate
     for base in (Path("/opt/chihiros-src"), Path("/config")):
         if not base.exists():
             continue
         for candidate in base.glob("**/custom_components/chihiros"):
-            if (candidate / "chihiros_led_control" / "chihirosctl.py").is_file():
+            if _has_ctl_entrypoint(candidate):
                 return candidate
     return None
+
+
+def _has_ctl_entrypoint(candidate: Path) -> bool:
+    return (
+        (candidate / "chihiros_led_control" / "chihirosctl.py").is_file()
+        or (candidate / "vendor" / "legacy_ctl" / "chihiros_led_control_old" / "chihirosctl.py").is_file()
+    )
 
 
 if __name__ == "__main__":

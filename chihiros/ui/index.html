@@ -79,9 +79,50 @@
     <script type="module">
       class HaIcon extends HTMLElement {
         connectedCallback() {
-          if (this.shadowRoot) return;
+          if (this.shadowRoot) {
+            this.render();
+            return;
+          }
           const root = this.attachShadow({ mode: "open" });
-          root.innerHTML = `<style>:host{display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;color:currentColor}</style><span></span>`;
+          root.innerHTML = `<style>:host{display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;color:currentColor}.icon{font:700 16px/1 system-ui, sans-serif}</style><span class="icon"></span>`;
+          this.render();
+        }
+
+        static get observedAttributes() {
+          return ["icon"];
+        }
+
+        attributeChangedCallback() {
+          this.render();
+        }
+
+        render() {
+          if (!this.shadowRoot) return;
+          const icon = this.getAttribute("icon") || "";
+          const map = {
+            "mdi:bottle-tonic-outline": "▯",
+            "mdi:calendar-check": "▣",
+            "mdi:calendar-remove": "⊠",
+            "mdi:calendar-sync": "↻",
+            "mdi:chip": "▦",
+            "mdi:clock-outline": "◷",
+            "mdi:content-copy": "⧉",
+            "mdi:cup-water": "▾",
+            "mdi:download-circle": "⇩",
+            "mdi:eye": "●",
+            "mdi:gesture-tap-button": "☚",
+            "mdi:hand-water": "≋",
+            "mdi:history": "↺",
+            "mdi:lightbulb": "●",
+            "mdi:lock-outline": "⌑",
+            "mdi:numeric": "#",
+            "mdi:pencil": "✎",
+            "mdi:play-circle": "▶",
+            "mdi:scale-balance": "⚖",
+            "mdi:timer-cog-outline": "◴",
+            "mdi:toggle-switch": "◉",
+          };
+          this.shadowRoot.querySelector(".icon").textContent = map[icon] || "•";
         }
       }
       if (!customElements.get("ha-icon")) customElements.define("ha-icon", HaIcon);
