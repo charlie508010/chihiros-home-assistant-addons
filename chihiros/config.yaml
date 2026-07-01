@@ -1,5 +1,5 @@
 name: Chihiros Beta
-version: "0.1.7"
+version: "0.1.8"
 slug: chihiros_beta
 description: Chihiros beta integration, dashboard and built-in CTL support for Home Assistant
 url: https://github.com/charlie508010/chihiros-home-assistant-addons/tree/main/chihiros
@@ -20,6 +20,7 @@ boot: auto
 init: false
 host_network: true
 host_dbus: true
+homeassistant_api: true
 map:
   - config:rw
 options:
