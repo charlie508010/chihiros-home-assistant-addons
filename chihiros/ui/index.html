@@ -90,6 +90,45 @@
       const error = document.getElementById("error");
       const dashboard = document.getElementById("dashboard");
 
+      const CardClass = customElements.get("chihiros-doser-card-v3");
+      if (CardClass && !CardClass.prototype._addonCtlPatched) {
+        CardClass.prototype._addonCtlPatched = true;
+        CardClass.prototype.copyCtlCommand = async function(command) {
+          const channel = this.channels && this.channels[0] ? this.channels[0].id : 1;
+          this.dialogState = {
+            type: "debug",
+            channel,
+            output: `RUN\n${command}`,
+            running: true,
+          };
+          this.render();
+          try {
+            const response = await fetch("./api/ctl", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ command }),
+            });
+            const data = await response.json();
+            this.dialogState = {
+              type: "debug",
+              channel,
+              output: `${response.ok ? "OK" : "FAIL"}\n${command}\n\n${data.output || data.message || ""}`,
+              running: false,
+              level: response.ok ? undefined : "error",
+            };
+          } catch (err) {
+            this.dialogState = {
+              type: "debug",
+              channel,
+              output: `FAIL\n${command}\n\n${err && err.message ? err.message : String(err)}`,
+              running: false,
+              level: "error",
+            };
+          }
+          this.render();
+        };
+      }
+
       const hass = {
         states: {},
         language: "de",

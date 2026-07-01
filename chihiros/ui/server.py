@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -26,6 +27,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/api/ctl":
+            self.run_ctl(self.read_json())
+            return
         if parsed.path.startswith("/api/services/"):
             parts = parsed.path.strip("/").split("/")
             if len(parts) != 4:
@@ -39,6 +43,45 @@ class Handler(BaseHTTPRequestHandler):
             self.proxy_core("POST", suffix, self.read_json())
             return
         self.send_json(404, {"message": "Not found"})
+
+    def run_ctl(self, body: bytes) -> None:
+        try:
+            data = json.loads(body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            self.send_json(400, {"message": "Invalid JSON"})
+            return
+        command = str(data.get("command", "")).strip()
+        if not command:
+            self.send_json(400, {"message": "Missing command"})
+            return
+        parts = command.split()
+        if not parts or parts[0] != "chihirosctl":
+            self.send_json(400, {"message": "Only chihirosctl commands are allowed"})
+            return
+        if any(token in command for token in [";", "&", "|", "`", "$(", ">", "<"]):
+            self.send_json(400, {"message": "Shell operators are not allowed"})
+            return
+        try:
+            result = subprocess.run(
+                parts,
+                cwd="/opt/chihiros-src",
+                env={**os.environ, "PYTHONPATH": "/opt/chihiros-src"},
+                text=True,
+                capture_output=True,
+                timeout=120,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            self.send_json(504, {"message": "Command timed out"})
+            return
+        output = "\n".join(part for part in [result.stdout.strip(), result.stderr.strip()] if part)
+        self.send_json(
+            200 if result.returncode == 0 else 500,
+            {
+                "returncode": result.returncode,
+                "output": output or "(no output)",
+            },
+        )
 
     def log_message(self, fmt: str, *args: object) -> None:
         print(f"{self.address_string()} - {fmt % args}")
