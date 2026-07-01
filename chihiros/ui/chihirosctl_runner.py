@@ -4,6 +4,7 @@ from __future__ import annotations
 import runpy
 import sys
 import types
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 
 
@@ -98,17 +99,44 @@ def main() -> None:
         raise SystemExit(2)
     _install_tkinter_stubs()
     sys.argv[0] = "chihirosctl"
-    source_root = Path("/opt/chihiros-src")
-    chihiros_root = source_root / "custom_components" / "chihiros"
+    chihiros_root = _find_chihiros_root()
+    if chihiros_root is None:
+        print("Chihiros source was not found in the add-on container.")
+        print("Checked: /opt/chihiros-src/custom_components/chihiros and /config/custom_components/chihiros")
+        raise SystemExit(2)
+    custom_components_root = chihiros_root.parent
 
     custom_components = types.ModuleType("custom_components")
-    custom_components.__path__ = [str(source_root / "custom_components")]
+    custom_components.__path__ = [str(custom_components_root)]
+    custom_components.__spec__ = ModuleSpec("custom_components", loader=None, is_package=True)
+    custom_components.__spec__.submodule_search_locations = [str(custom_components_root)]
+
     chihiros_pkg = types.ModuleType("custom_components.chihiros")
     chihiros_pkg.__path__ = [str(chihiros_root)]
-    sys.modules.setdefault("custom_components", custom_components)
-    sys.modules.setdefault("custom_components.chihiros", chihiros_pkg)
+    chihiros_pkg.__spec__ = ModuleSpec("custom_components.chihiros", loader=None, is_package=True)
+    chihiros_pkg.__spec__.submodule_search_locations = [str(chihiros_root)]
+
+    sys.modules["custom_components"] = custom_components
+    sys.modules["custom_components.chihiros"] = chihiros_pkg
 
     runpy.run_module("custom_components.chihiros.chihiros_led_control.chihirosctl", run_name="__main__")
+
+
+def _find_chihiros_root() -> Path | None:
+    candidates = [
+        Path("/opt/chihiros-src/custom_components/chihiros"),
+        Path("/config/custom_components/chihiros"),
+    ]
+    for candidate in candidates:
+        if (candidate / "chihiros_led_control" / "chihirosctl.py").is_file():
+            return candidate
+    for base in (Path("/opt/chihiros-src"), Path("/config")):
+        if not base.exists():
+            continue
+        for candidate in base.glob("**/custom_components/chihiros"):
+            if (candidate / "chihiros_led_control" / "chihirosctl.py").is_file():
+                return candidate
+    return None
 
 
 if __name__ == "__main__":
