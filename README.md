@@ -1,6 +1,6 @@
-# Chihiros Home Assistant Add-ons
+# Chihiros Beta Home Assistant Add-on
 
-Home Assistant add-on repository for Chihiros CTL.
+Home Assistant add-on repository for the Chihiros integration.
 
 Add this repository in Home Assistant:
 
@@ -8,12 +8,7 @@ Add this repository in Home Assistant:
 https://github.com/charlie508010/chihiros-home-assistant-addons
 ```
 
-Available add-ons:
-
-- Chihiros CTL
-- Chihiros CTL Beta
-
-The add-ons fetch the Chihiros integration and CTL code from:
+The beta add-on fetches the Chihiros integration, dashboard and built-in CTL support from:
 
 ```text
 https://github.com/charlie508010/chihiros-led-control-beta.git

@@ -50,8 +50,7 @@ if [[ "${INSTALL_INTEGRATION}" == "true" ]]; then
   echo "Restart Home Assistant after first install or update."
 fi
 
-echo "chihirosctl is available inside this add-on container."
-echo "Example: chihirosctl doser show-schedules doser_1"
+echo "Chihiros Beta is running. Built-in CTL command is available as chihirosctl inside this add-on container."
 
 if [[ "${KEEP_RUNNING}" == "true" ]]; then
   tail -f /dev/null

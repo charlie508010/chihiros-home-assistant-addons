@@ -1,8 +1,8 @@
-name: Chihiros CTL Beta
+name: Chihiros Beta
 version: "0.1.0"
-slug: chihirosctl_beta
-description: Beta Chihiros CTL helper container for Home Assistant
-url: https://github.com/charlie508010/chihiros-home-assistant-addons/tree/main/chihirosctl-beta
+slug: chihiros_beta
+description: Chihiros beta integration, dashboard and built-in CTL support for Home Assistant
+url: https://github.com/charlie508010/chihiros-home-assistant-addons/tree/main/chihiros
 arch:
   - aarch64
   - amd64
@@ -16,7 +16,7 @@ build_from:
   armv7: ghcr.io/home-assistant/armv7-base:latest
   i386: ghcr.io/home-assistant/i386-base:latest
 startup: services
-boot: manual
+boot: auto
 init: false
 host_network: true
 host_dbus: true
@@ -32,5 +32,5 @@ schema:
   source_branch: str
   install_integration: bool
   keep_running: bool
-panel_icon: mdi:console
-panel_title: Chihiros CTL Beta
+panel_icon: mdi:fish
+panel_title: Chihiros Beta
