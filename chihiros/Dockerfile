@@ -27,4 +27,4 @@ RUN chmod a+x /run.sh \
   && chmod a+x /usr/bin/chihirosctl
 
 ENV PYTHONPATH=/opt/chihiros-src
-CMD ["/run.sh"]
+CMD ["/usr/bin/with-contenv", "bash", "/run.sh"]
