@@ -670,7 +670,13 @@ class ChihirosDoserCard extends window.ChihirosLedPanelMixin(HTMLElement) {
   }
 
   serviceResponse(response) {
-    return response && response.response ? response.response : response;
+    let value = response && response.response ? response.response : response;
+    if (value && typeof value === "object" && !value.debug_output && !value.send_status && !value.send_detail) {
+      if (value.chihiros && typeof value.chihiros === "object") value = value.chihiros;
+      const keys = Object.keys(value);
+      if (keys.length === 1 && value[keys[0]] && typeof value[keys[0]] === "object") value = value[keys[0]];
+    }
+    return value;
   }
 
   serviceResultOutput(service, response, debug = false) {
