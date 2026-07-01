@@ -33,6 +33,11 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/plugins":
             self.send_json(200, {"plugins": self.list_plugins()})
             return
+        if parsed.path == "/api/plugins/install-bundled":
+            query = parse_qs(parsed.query)
+            plugin_id = (query.get("id") or ["wireshark"])[0]
+            self.install_bundled_plugin(json.dumps({"id": plugin_id}).encode("utf-8"))
+            return
         self.serve_static(parsed.path)
 
     def do_POST(self) -> None:

@@ -45,6 +45,13 @@ rm -rf /opt/chihiros-addon-ui/www
 mkdir -p /opt/chihiros-addon-ui/www
 cp -a /opt/chihiros-src/custom_components/chihiros/www/. /opt/chihiros-addon-ui/www/
 
+mkdir -p /config/chihiros/plugins
+if [[ -f /opt/chihiros-addon-ui/plugins/wireshark/plugin.json && ! -f /config/chihiros/plugins/wireshark/plugin.json ]]; then
+  mkdir -p /config/chihiros/plugins/wireshark
+  cp -a /opt/chihiros-addon-ui/plugins/wireshark/. /config/chihiros/plugins/wireshark/
+  echo "Bundled Wireshark plugin installed to /config/chihiros/plugins/wireshark"
+fi
+
 if [[ "${INSTALL_INTEGRATION}" == "true" ]]; then
   mkdir -p /config/custom_components
   rm -rf /config/custom_components/chihiros
