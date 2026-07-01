@@ -58,6 +58,15 @@ class Handler(BaseHTTPRequestHandler):
         if not parts or parts[0] != "chihirosctl":
             self.send_json(400, {"message": "Only chihirosctl commands are allowed"})
             return
+        if len(parts) >= 3 and parts[1] == "doser" and parts[2] == "gui":
+            self.send_json(
+                400,
+                {
+                    "message": "GUI commands are not available inside the Home Assistant add-on container.",
+                    "output": "Use the Add-on UI tabs or a non-GUI chihirosctl command.",
+                },
+            )
+            return
         if any(token in command for token in [";", "&", "|", "`", "$(", ">", "<"]):
             self.send_json(400, {"message": "Shell operators are not allowed"})
             return
