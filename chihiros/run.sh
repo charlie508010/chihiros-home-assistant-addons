@@ -52,6 +52,8 @@ fi
 
 echo "Chihiros Beta is running. Built-in CTL command is available as chihirosctl inside this add-on container."
 
+python3 -m http.server 8099 --directory /opt/chihiros-addon-ui &
+
 if [[ "${KEEP_RUNNING}" == "true" ]]; then
   tail -f /dev/null
 fi

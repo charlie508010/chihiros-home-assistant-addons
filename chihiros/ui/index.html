@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chihiros Beta</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #071011;
+        --panel: #0c1a1d;
+        --line: rgba(3, 201, 255, .28);
+        --text: #e8eef0;
+        --muted: #9dadb2;
+        --accent: #03c9ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      main {
+        width: min(1320px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 18px 0 28px;
+      }
+      .tabs, .device-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      button {
+        min-width: 92px;
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(10, 18, 21, .9);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+      button.active {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(0, 122, 166, .18);
+        font-weight: 700;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(13, 31, 35, .96), rgba(8, 18, 20, .96));
+        padding: 14px;
+        min-height: 132px;
+      }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: 22px; margin-bottom: 12px; }
+      h2 { font-size: 17px; margin-bottom: 10px; }
+      .muted { color: var(--muted); }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 0;
+        border-top: 1px solid rgba(255, 255, 255, .07);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 0 10px;
+        background: rgba(57, 211, 83, .16);
+        color: #46e36d;
+        font-weight: 700;
+      }
+      .wide { grid-column: span 2; }
+      .full { grid-column: 1 / -1; }
+      a { color: var(--accent); }
+      @media (max-width: 1000px) {
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 640px) {
+        main { width: calc(100vw - 20px); }
+        .grid { grid-template-columns: 1fr; }
+        .wide { grid-column: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav class="tabs" aria-label="Chihiros Bereiche">
+        <button class="active" data-tab="led">LED</button>
+        <button data-tab="doser">Doser</button>
+        <button data-tab="ruehrer">Ruehrer</button>
+        <button data-tab="heizer">Heizer</button>
+        <button data-tab="config">Config</button>
+        <button data-tab="ctl">CTL</button>
+      </nav>
+
+      <section id="led" class="tab-page">
+        <nav class="device-tabs" aria-label="LED Geraete">
+          <button class="active">Geraet 1</button>
+          <button>Geraet 2</button>
+          <button>Geraet 3</button>
+        </nav>
+        <div class="grid">
+          <article class="card wide">
+            <h2>LED</h2>
+            <p class="muted">Universal WRGB / RGB / Dimmer Vorbereitung</p>
+            <div class="row"><span>Status</span><strong>Online</strong></div>
+            <div class="row"><span>Helligkeit</span><strong>80 %</strong></div>
+          </article>
+          <article class="card"><h2>Rot</h2><p>80 %</p></article>
+          <article class="card"><h2>Gruen</h2><p>110 %</p></article>
+          <article class="card"><h2>Blau</h2><p>101 %</p></article>
+          <article class="card"><h2>Weiss</h2><p>100 %</p></article>
+        </div>
+      </section>
+
+      <section id="doser" class="tab-page" hidden>
+        <nav class="device-tabs" aria-label="Doser Geraete">
+          <button class="active">Geraet 1</button>
+          <button>Geraet 2</button>
+          <button>Geraet 3</button>
+        </nav>
+        <div class="grid">
+          <article class="card"><h2>CH1 Nitrat</h2><div class="row"><span>Planmenge</span><strong>2.0 mL</strong></div></article>
+          <article class="card"><h2>CH2 Phosphat</h2><div class="row"><span>Planmenge</span><strong>10.0 mL</strong></div></article>
+          <article class="card"><h2>CH3 Eisen</h2><div class="row"><span>Planmenge</span><strong>5.0 mL</strong></div></article>
+          <article class="card"><h2>CH4 Kalium</h2><div class="row"><span>Planmenge</span><strong>6.7 mL</strong></div></article>
+          <article class="card full">
+            <h2>Doser Zeitplan</h2>
+            <p class="muted">Die echte Steuerung laeuft ueber die installierte Home-Assistant-Integration und deren Services.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="ruehrer" class="tab-page" hidden>
+        <div class="grid">
+          <article class="card full"><h2>Ruehrer</h2><p class="muted">MagStirrer Bereich vorbereitet.</p></article>
+        </div>
+      </section>
+
+      <section id="heizer" class="tab-page" hidden>
+        <div class="grid">
+          <article class="card full"><h2>Heizer</h2><p class="muted">Heizer Bereich vorbereitet.</p></article>
+        </div>
+      </section>
+
+      <section id="config" class="tab-page" hidden>
+        <div class="grid">
+          <article class="card wide"><h2>Config</h2><p class="muted">Anzeige, Sprache, MAC und Kanalnamen.</p></article>
+          <article class="card wide"><h2>Integration</h2><p><span class="pill">installiert vom Add-on</span></p></article>
+        </div>
+      </section>
+
+      <section id="ctl" class="tab-page" hidden>
+        <div class="grid">
+          <article class="card full">
+            <h2>CTL</h2>
+            <p class="muted">CTL ist in der Beta-Version enthalten. Befehle sollen spaeter direkt ueber Home-Assistant-Services laufen.</p>
+            <div class="row"><span>Beispiel</span><code>chihirosctl doser show-schedules doser_1</code></div>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script>
+      const buttons = [...document.querySelectorAll("[data-tab]")];
+      const pages = [...document.querySelectorAll(".tab-page")];
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const tab = button.dataset.tab;
+          buttons.forEach((item) => item.classList.toggle("active", item === button));
+          pages.forEach((page) => page.hidden = page.id !== tab);
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -20,6 +20,7 @@ RUN apk add --no-cache \
     "typer[all]==0.15.2"
 
 COPY run.sh /run.sh
+COPY ui /opt/chihiros-addon-ui
 
 RUN chmod a+x /run.sh \
   && printf '%s\n' '#!/usr/bin/env bash' 'export PYTHONPATH=/opt/chihiros-src:${PYTHONPATH}' 'exec /opt/chihiros-venv/bin/python -m custom_components.chihiros.chihiros_led_control.chihirosctl "$@"' > /usr/bin/chihirosctl \
