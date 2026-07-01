@@ -462,6 +462,7 @@
           }
           if (!response.ok) throw new Error(body.message || text || `Service ${domain}.${service} failed`);
           await refreshStates();
+          if (returnResponse && body && body.service_response && !body.response) return { response: body.service_response };
           if (returnResponse && body && !body.response) return { response: body };
           return body;
         },

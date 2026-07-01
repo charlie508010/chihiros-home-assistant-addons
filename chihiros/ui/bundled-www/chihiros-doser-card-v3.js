@@ -670,7 +670,8 @@ class ChihirosDoserCard extends window.ChihirosLedPanelMixin(HTMLElement) {
   }
 
   serviceResponse(response) {
-    let value = response && response.response ? response.response : response;
+    let value = response && (response.response || response.service_response) ? (response.response || response.service_response) : response;
+    if (value && value.service_response) value = value.service_response;
     if (value && typeof value === "object" && !value.debug_output && !value.send_status && !value.send_detail) {
       if (value.chihiros && typeof value.chihiros === "object") value = value.chihiros;
       const keys = Object.keys(value);
@@ -683,11 +684,13 @@ class ChihirosDoserCard extends window.ChihirosLedPanelMixin(HTMLElement) {
     const serviceResponse = this.serviceResponse(response);
     if (debug && serviceResponse && serviceResponse.debug_output) return serviceResponse.debug_output;
     const ok = !serviceResponse || !serviceResponse.send_status || serviceResponse.send_status === "ok";
+    const raw = debug && response ? JSON.stringify(response, null, 2) : "";
     return [
       ok ? "OK" : "FAIL",
       `Service: chihiros.${service}`,
       serviceResponse && serviceResponse.send_status ? `Status: ${serviceResponse.send_status}` : "",
       serviceResponse && serviceResponse.send_detail ? `Antwort: ${serviceResponse.send_detail}` : "",
+      raw && !serviceResponse?.send_status && !serviceResponse?.send_detail ? `Antwort roh:\n${raw}` : "",
     ].filter(Boolean).join("\n") || this.tr("debug_empty");
   }
 
