@@ -41,6 +41,10 @@ fi
 rm -rf /opt/chihiros-src
 git clone --depth 1 --branch "${SOURCE_BRANCH}" "${SOURCE_REPOSITORY}" /opt/chihiros-src
 
+rm -rf /opt/chihiros-addon-ui/www
+mkdir -p /opt/chihiros-addon-ui/www
+cp -a /opt/chihiros-src/custom_components/chihiros/www/. /opt/chihiros-addon-ui/www/
+
 if [[ "${INSTALL_INTEGRATION}" == "true" ]]; then
   mkdir -p /config/custom_components
   rm -rf /config/custom_components/chihiros
@@ -52,7 +56,7 @@ fi
 
 echo "Chihiros Beta is running. Built-in CTL command is available as chihirosctl inside this add-on container."
 
-python3 -m http.server 8099 --directory /opt/chihiros-addon-ui &
+python3 /opt/chihiros-addon-ui/server.py &
 
 if [[ "${KEEP_RUNNING}" == "true" ]]; then
   tail -f /dev/null
