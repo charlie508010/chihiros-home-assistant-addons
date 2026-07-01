@@ -42,6 +42,7 @@ def _install_tkinter_stubs() -> None:
     messagebox = types.ModuleType("tkinter.messagebox")
     simpledialog = types.ModuleType("tkinter.simpledialog")
     scrolledtext = types.ModuleType("tkinter.scrolledtext")
+    filedialog = types.ModuleType("tkinter.filedialog")
 
     for name in (
         "Tk",
@@ -51,6 +52,7 @@ def _install_tkinter_stubs() -> None:
         "Button",
         "Entry",
         "Text",
+        "Scrollbar",
         "StringVar",
         "BooleanVar",
         "IntVar",
@@ -70,7 +72,27 @@ def _install_tkinter_stubs() -> None:
     ):
         setattr(ttk, name, _Dummy)
 
-    for name in ("W", "E", "N", "S", "EW", "NS", "NSEW", "BOTH", "X", "Y", "END", "DISABLED", "NORMAL"):
+    for name in (
+        "W",
+        "E",
+        "N",
+        "S",
+        "EW",
+        "NS",
+        "NSEW",
+        "BOTH",
+        "X",
+        "Y",
+        "END",
+        "DISABLED",
+        "NORMAL",
+        "VERTICAL",
+        "HORIZONTAL",
+        "LEFT",
+        "RIGHT",
+        "TOP",
+        "BOTTOM",
+    ):
         setattr(tk, name, name)
 
     messagebox.showinfo = lambda *args, **kwargs: None
@@ -80,16 +102,21 @@ def _install_tkinter_stubs() -> None:
     simpledialog.askinteger = lambda *args, **kwargs: None
     simpledialog.askfloat = lambda *args, **kwargs: None
     scrolledtext.ScrolledText = _Dummy
+    filedialog.askopenfilename = lambda *args, **kwargs: ""
+    filedialog.askdirectory = lambda *args, **kwargs: ""
+    filedialog.asksaveasfilename = lambda *args, **kwargs: ""
 
     tk.ttk = ttk
     tk.messagebox = messagebox
     tk.simpledialog = simpledialog
+    tk.filedialog = filedialog
 
     sys.modules["tkinter"] = tk
     sys.modules["tkinter.ttk"] = ttk
     sys.modules["tkinter.messagebox"] = messagebox
     sys.modules["tkinter.simpledialog"] = simpledialog
     sys.modules["tkinter.scrolledtext"] = scrolledtext
+    sys.modules["tkinter.filedialog"] = filedialog
 
 
 def main() -> None:
