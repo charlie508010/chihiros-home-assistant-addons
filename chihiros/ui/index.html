@@ -64,36 +64,6 @@
         color: #ffd8d8;
         white-space: pre-wrap;
       }
-      .ctl-device-bar {
-        display: grid;
-        grid-template-columns: auto minmax(180px, 320px) 64px;
-        align-items: center;
-        gap: 8px;
-        margin: 0 0 10px;
-      }
-      .ctl-device-bar label {
-        color: var(--secondary-text-color);
-        font-weight: 700;
-      }
-      .ctl-device-bar input {
-        min-height: 34px;
-        border: 1px solid rgba(81,154,190,.35);
-        border-radius: 6px;
-        background: rgba(255,255,255,.08);
-        color: var(--primary-text-color);
-        padding: 0 10px;
-        font: inherit;
-      }
-      .ctl-device-bar button {
-        min-height: 34px;
-        border: 1px solid rgba(3,201,255,.65);
-        border-radius: 6px;
-        background: rgba(0,122,166,.18);
-        color: var(--primary-text-color);
-        font: inherit;
-        font-weight: 700;
-        cursor: pointer;
-      }
     </style>
   </head>
   <body>
@@ -103,11 +73,6 @@
       <span id="status" class="status">verbinde...</span>
     </header>
     <main>
-      <div class="ctl-device-bar">
-        <label for="ctl-device">CTL Geraet</label>
-        <input id="ctl-device" type="text" value="doser_1" spellcheck="false">
-        <button id="ctl-device-save" type="button">OK</button>
-      </div>
       <chihiros-doser-card-v3 id="dashboard"></chihiros-doser-card-v3>
       <div id="error" class="error" hidden></div>
     </main>
@@ -124,42 +89,20 @@
       const status = document.getElementById("status");
       const error = document.getElementById("error");
       const dashboard = document.getElementById("dashboard");
-      const ctlDevice = document.getElementById("ctl-device");
-      const ctlDeviceSave = document.getElementById("ctl-device-save");
-
-      function currentCtlDevice() {
-        return (ctlDevice && ctlDevice.value ? ctlDevice.value.trim() : "") || "doser_1";
-      }
-
-      function resolveCtlCommand(command) {
-        let resolved = String(command || "").replaceAll("{device}", currentCtlDevice());
-        const parts = resolved.trim().split(/\s+/);
-        if (parts.length === 3 && parts[0] === "chihirosctl" && parts[1] === "doser" && parts[2] !== "gui") {
-          resolved = `${resolved} ${currentCtlDevice()}`;
-        }
-        return resolved;
-      }
-
-      function saveCtlDevice() {
-        if (!ctlDevice) return;
-        ctlDevice.value = currentCtlDevice();
-        dashboard.ctlDevice = ctlDevice.value;
-      }
-
-      if (ctlDevice) {
-        ctlDevice.addEventListener("keydown", (ev) => {
-          if (ev.key === "Enter") saveCtlDevice();
-        });
-        ctlDevice.addEventListener("change", saveCtlDevice);
-      }
-      if (ctlDeviceSave) ctlDeviceSave.addEventListener("click", saveCtlDevice);
 
       const CardClass = customElements.get("chihiros-doser-card-v3");
       if (CardClass && !CardClass.prototype._addonCtlPatched) {
         CardClass.prototype._addonCtlPatched = true;
         CardClass.prototype.copyCtlCommand = async function(command) {
           const channel = this.channels && this.channels[0] ? this.channels[0].id : 1;
-          const resolvedCommand = resolveCtlCommand(this.resolveCtlCommand ? this.resolveCtlCommand(command) : command);
+          const device = String(this.ctlDevice || "doser_1").trim() || "doser_1";
+          let resolvedCommand = this.resolveCtlCommand
+            ? this.resolveCtlCommand(command)
+            : String(command || "").replaceAll("{device}", device);
+          const parts = resolvedCommand.trim().split(/\s+/);
+          if (parts.length === 3 && parts[0] === "chihirosctl" && parts[1] === "doser" && parts[2] !== "gui") {
+            resolvedCommand = `${resolvedCommand} ${device}`;
+          }
           this.dialogState = {
             type: "debug",
             channel,
